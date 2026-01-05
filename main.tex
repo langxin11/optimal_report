@@ -21,9 +21,11 @@
 \usepackage{float}          
 \usepackage{cite}           
 \usepackage{caption}        
+\captionsetup{labelsep=quad} % 图题冒号改为空格
 \usepackage{anyfontsize}
 \usepackage{mathtools,amssymb}
 \usepackage{xcolor}         % 用于TODO高亮
+\usepackage{pdfpages}
 
 % 【修复红框】加载超链接包并隐藏边框
 \usepackage[hidelinks]{hyperref}
@@ -33,6 +35,14 @@
 
 % 让每个一级标题自动换页
 \newcommand{\sectionbreak}{\clearpage}
+
+% 调整参考文献间距
+\let\oldbibliography\thebibliography
+\renewcommand\thebibliography[1]{
+  \oldbibliography{#1}
+  \setlength{\parskip}{0pt}
+  \setlength{\itemsep}{0pt plus 0.3ex}
+}
 
 %=================== 2. 页面布局与行距 ===================
 \geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
@@ -117,6 +127,9 @@
 %=================== 文档开始 ===================
 \begin{document}
 
+% 插入封面 PDF
+\includepdf[pages=1]{cover.pdf}
+
 % --------- 前言部分 ---------
 \pagenumbering{Roman}
 \pagestyle{frontstyle}
@@ -133,12 +146,12 @@
 {\songti\zihao{-4}
 本文对微型飞行器 (MAV)，特别是四旋翼等多旋翼构型的模型预测控制 (MPC)策略的设计与应用进行了综述。本文根据以下标准对该领域内种类繁多的研究工作进行了分类梳理：控制律优化是基于线性还是非线性动力学、状态与输入约束的集成情况、潜在的容错设计、是否采用了强化学习方法，以及控制器是针对自由飞行还是物理交互、负载运输等其他任务。
 
-文章还展示了一组精选的对比结果，旨在为线性与非线性控制方案的选择、预测视界的参数整定、基于扰动观测器的无静差跟踪的重要性以及此类方法对参数不确定性的内在鲁棒性提供参考见解。此外，本文还概述了现代深度强化学习技术与模型预测控制在多旋翼飞行器中结合应用的最新研究趋势。最后，本综述详细讨论了若干精选的开源软件包，这些软件包提供了现成的模型预测控制功能，可适用于多种微型飞行器构型。
+文章还展示了一组精选的对比结果，旨在为线性与非线性控制方案的选择、预测视界的参数整定、基于扰动观测器的无静差跟踪的重要性以及此类方法对参数不确定性的内在鲁棒性提供参考见解。此外，本文还概述了现代深度强化学习技术与模型预测控制在多旋翼飞行器中结合应用的最新研究趋势。
 
 \vspace{1em}
 {\bfseries
 \noindent Abstract: 
-This paper presents a review of the design and application of model predictive control strategies for Micro Aerial Vehicles and specifically multirotor configurations such as quadrotors. The diverse set of works in the domain is organized based on the control law being optimized over linear or nonlinear dynamics, the integration of state and input constraints, possible fault-tolerant design, if reinforcement learning methods have been utilized and if the controller refers to free-flight or other tasks such as physical interaction or load transportation. A selected set of comparison results are also presented and serve to provide insight for the selection between linear and nonlinear schemes, the tuning of the prediction horizon, the importance of disturbance observer-based offsetfree tracking and the intrinsic robustness of such methods to parameter uncertainty. Furthermore, an overview of recent research trends on the combined application of modern deep reinforcement learning techniques and model predictive control for multirotor vehicles is presented. Finally, this review concludes with explicit discussion regarding selected open-source software packages that deliver off-the-shelf model predictive control functionality applicable to a wide variety of Micro Aerial Vehicle configurations.
+This paper presents a review of the design and application of model predictive control strategies for Micro Aerial Vehicles and specifically multirotor configurations such as quadrotors. The diverse set of works in the domain is organized based on the control law being optimized over linear or nonlinear dynamics, the integration of state and input constraints, possible fault-tolerant design, if reinforcement learning methods have been utilized and if the controller refers to free-flight or other tasks such as physical interaction or load transportation. A selected set of comparison results are also presented and serve to provide insight for the selection between linear and nonlinear schemes, the tuning of the prediction horizon, the importance of disturbance observer-based offsetfree tracking and the intrinsic robustness of such methods to parameter uncertainty. Furthermore, an overview of recent research trends on the combined application of modern deep reinforcement learning techniques and model predictive control for multirotor vehicles is presented.
 }}
 
 \clearpage
@@ -156,13 +169,13 @@ This paper presents a review of the design and application of model predictive c
 
 % ===================== 第1章 引言 =====================
 \section{引言}
-微型飞行器 (MAVs)，特别是属于多旋翼类别的系统，如四旋翼和六旋翼飞行器，已成为一种广泛采用的空中机器人 。如今，此类系统被广泛用于自主巡检 \cite{A1}、监视 \cite{A2} 和其他遥感应用，以及涉及物理交互 \cite{A3}、配送 \cite{A4} 等任务 。它们的成功归因于多种因素，包括结构简单、低成本、可靠性高以及敏捷的动力学特性。自然地，其中的一个关键组件与搭载在此类系统上的控制器的精度和鲁棒性有关，控制器与状态估计过程一并构成了促进自主导航所需的两个最基础的算法。
+微型飞行器 (MAVs)，特别是属于多旋翼类别的系统，如四旋翼和六旋翼飞行器，已成为一种广泛采用的空中机器人 。如今，此类系统被广泛用于自主巡检 \cite{A1}、监视 \cite{A2} 和其他遥感应用，以及涉及物理交互 \cite{A3}、配送 \cite{A4} 等任务 。它们的成功归因于多种因素，包括结构简单、低成本、可靠性高以及敏捷的动力学特性。其中一个关键组件与搭载在此类系统上的控制器的精度和鲁棒性有关，控制器与状态估计过程一并构成了促进自主导航所需的两个最基础的算法。
 
 针对这一事实，研究人员提出了多种控制策略来解决 MAV 的飞行控制问题，包括无模型 (model-free) 和基于模型 (model-based) 的方法 。在后者中，线性与非线性方法均被纳入考量，此外还有利用分段系统模型的方法、专为执行物理交互或负载运输任务的机器人量身定制的技术，以及基于深度神经网络的强化学习方法 。在这些众多的方法中，模型预测控制 (MPC) 得到了广泛应用，并在轨迹跟踪精度和鲁棒性能方面展现了出色的结果 。图 \ref{fig:1} 展示了依赖模型预测控制的 MAV 实例 。
 \begin{figure}[H] % [H] 表示强制图片在这里，不乱跑
     \centering
     \includegraphics[width=0.8\textwidth]{fig/1.png} % 修改文件名
-    \caption{作者先前研究中采用模型预测控制实现位置控制的导航无人机} % 修改图注
+    \caption{基于模型预测控制实现位置控制的导航无人机} % 修改图注
     \label{fig:1} % 给图片起个代号，方便引用
 \end{figure}
 
@@ -175,7 +188,7 @@ This paper presents a review of the design and application of model predictive c
 % ===================== 第2章 建模 =====================
 \section{微型飞行器建模}
 许多研究成果提供了在不同保真度水平上对多旋翼 MAV 进行建模的广泛手段。如图 \ref{fig:2} 直观所示，人们可以在不同程度上考虑复杂的空气动力学参数、非对角惯性项以及在开创性研究 \cite{A13} 中详细描述的其他效应。这种模块化方法使我们能够在不失一般性的前提下，通过将六旋翼飞行器视为多旋翼系统的一个特定实例来简化随后的讨论，而在该演示基础上进行构建的研究人员可以独立决定螺旋桨模型等组件 。
-\begin{figure}[H] % [H] 表示强制图片在这里，不乱跑
+\begin{figure}[htbp] % [htbp] 自动调整位置
     \centering
     \includegraphics[width=0.8\textwidth]{fig/2.png} % 修改文件名
     \caption{微型飞行器动力学的基本模型组件} % 修改图注
@@ -186,7 +199,7 @@ This paper presents a review of the design and application of model predictive c
 
 \subsection{动力学模型}
 对于下面的建模推导，我们选择一个具有单位向量 $\{\vec{I}_{x},\vec{I}_{y},\vec{I}_{z}\}$ 的惯性参考系 $I$ 和一个具有单位向量 $\{\vec{B}_{x},\vec{B}_{y},\vec{B}_{z}\}$ 的机体固定坐标系 $B$。$B$ 的原点位于六旋翼的质心 (CoM)，如图 \ref{fig:3} 所示。在接下来的过程中，我们用 $m$ 表示总质量，$J\in\mathbb{R}^{3\times3}$ 表示相对于 $B$ 的惯性矩阵，$R_{IB}\in SO(3)$ 表示代表飞行器姿态的旋转矩阵，$\omega\in\mathbb{R}^{3}$ 表示在 $B$ 中表示的角速度，$p\in\mathbb{R}^{3}$ 表示在 $I$ 中表示的飞行器质心位置，$v\in\mathbb{R}^{3}$ 表示在 $I$ 中表示的质心速度。
-\begin{figure}[H] % [H] 表示强制图片在这里，不乱跑
+\begin{figure}[htbp] % [htbp] 自动调整位置
     \centering
     \includegraphics[width=0.6\textwidth]{fig/3.png} % 修改文件名
     \caption{六旋翼模型及采用的坐标系} % 修改图注
@@ -390,26 +403,26 @@ $\mathbf{y}_k = \mathbf{C} \mathbf{x}_k$进行跟踪并实现无稳态偏差控�
 由于自由飞行控制是多旋翼 MAV 的主要控制任务，本节对六旋翼 MAV 的位置跟踪问题，比较了两种基线的线性与非线性 MPC 方法。具体而言，使用文献~\cite{kamel2017model} 中给出的 C++ 实现，对线性与非线性 MPC 控制器的性能进行了比较，仿真模型为基于 RotorS 开源仿真器~\cite{furrer2016rotors} 的 AscTec Firefly 六旋翼。两个控制器的权重矩阵 $Q_x$ 和 $R_u$ 相同，而终端矩阵 $P$ 则通过求解对应的离散代数 Riccati 方程获得。
 
 从图~\ref{fig:4} 可观察到，当轨迹更为激进（$t \in [40,48]$ s）时，非线性 MPC 的性能优于线性 MPC，这是因为非线性 MPC 能在无人机倾转角较大时充分利用系统的非线性动力学。此情况下，非线性与线性 MPC 的均方根误差（RMSE）分别为 8.6 cm 和 19.0 cm。本文还验证了线性 MPC 在参数不确定性（本例为质量参数）下的性能，如图~\ref{fig:5} 所示。可以看到，尽管 $x$ 和 $y$ 轴响应变化不大，但当系统质量参数不正确时，$z$ 轴响应出现偏移，这表明在实际应用中需要引入扰动观测器。
-\begin{figure}
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.5\linewidth]{fig/4.png}
-    \caption{线性与非线性 MPC 在不同频率范围 ($[0.1, 0.33]$ Hz) 的正弦输入信号下的位移响应。}
+    \caption{线性与非线性 MPC 在正弦输入信号下的位移响应对比}
     \label{fig:4}
 \end{figure}
-\begin{figure}
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.5\linewidth]{fig/5.png}
-    \caption{当微型飞行器（MAV）质量设置正确 ($m = 1.5$ kg) 及设置不正确 ($m = 1.2$ kg 和 $m = 1.8$ kg) 时，线性 MPC 的阶跃响应。所有情况下扰动观测器均关闭。对应的 $z$ 轴均方根误差（RMSE）分别为 30.36 cm、42.3 cm 和 45.1 cm。}
+    \caption{存在质量参数不确定性时线性 MPC 的阶跃响应（无扰动观测器）}
     \label{fig:5}
 \end{figure}
-众所周知，MPC 问题中的预测步数对闭环系统的可行性与稳定性有显著影响。具体而言，增加预测时域可以扩大系统的吸引域~\cite{borrelli2017predictive}。图~\ref{fig:6} 展示了闭环系统在不同预测时域和输入信号（如图~\ref{fig:5} 所示）下的响应，均方根误差（RMSE）值列于表~I 中。可以看到，适度增加预测步数能够提升跟踪性能。然而，如图~\ref{fig:7} 的箱线图所示，使用更长预测时域求解 MPC 问题需要更多计算时间。图~\ref{fig:7} 中以红色叉号标出的离群值对应于控制输入接近限制的情况，此时求解器需要更多迭代才能找到解。有趣的是，基于文献~\cite{houska2011acado} 的非线性 MPC 求解器相比基于文献~\cite{mattingley2011cvxgen} 的线性 MPC 求解器具有更短的计算时间。
+MPC 问题中的预测步数对闭环系统的可行性与稳定性有显著影响。具体而言，增加预测时域可以扩大系统的吸引域~\cite{borrelli2017predictive}。图~\ref{fig:6} 展示了闭环系统在不同预测时域和输入信号（如图~\ref{fig:5} 所示）下的响应，均方根误差（RMSE）值列于表~I 中。可以看到，适度增加预测步数能够提升跟踪性能。然而，如图~\ref{fig:7} 的箱线图所示，使用更长预测时域求解 MPC 问题需要更多计算时间。图~\ref{fig:7} 中以红色叉号标出的离群值对应于控制输入接近限制的情况，此时求解器需要更多迭代才能找到解。有趣的是，基于文献~\cite{houska2011acado} 的非线性 MPC 求解器相比基于文献~\cite{mattingley2011cvxgen} 的线性 MPC 求解器具有更短的计算时间。
 
 \subsection{容错MPC}
 容错性是每种控制方案的核心特性。由于微型飞行器（MAVs）可能承担关键任务，而其空中特性又使其成为潜在的风险因素，因此评估其飞行控制的容错能力尤为重要。文献~\cite{muller2014stability} 展示了即便四旋翼 MAV 失去一个、两个甚至三个螺旋桨，其自由度仍能保持完全或部分可控性的潜力。自然地，当 MAV 集成更多执行器（例如六旋翼）时，可进行的控制重新分配选项也随之增加。在 MPC 相关工作方面，文献~\cite{kamel2015fast,tzoumanikas2020nonlinear,wu2019nonlinear} 在不同设计下展示了 NMPC 在对称欠驱动六旋翼受到螺旋桨失效影响时，保持动态稳定性的固有能力。此外，文献~\cite{aoki2018nonlinear} 展示了 NMPC 在三台电机失效的六旋翼上的应用。文献~\cite{yu2015mpc} 探讨了四旋翼执行器部分控制有效性丧失的情况，并应用带终端约束的 MPC 来实现即便存在故障也能准确跟踪参考值，同时设计了故障检测与诊断系统以辅助 MPC 执行控制任务。考虑到 MAV 在安全关键应用或国家空域中的重要性，容错预测控制设计的重要性将进一步提升。
-\begin{figure}
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.5\linewidth]{fig/6.png}
-    \caption{线性与非线性 MPC 在不同预测时域下的阶跃响应（$N = 10, 20, 30$ 个预测步长 $T_p = 0.1$ s）。}
+    \caption{不同预测时域下线性与非线性 MPC 的阶跃响应对比}
     \label{fig:6}
 \end{figure}
 
@@ -427,10 +440,10 @@ $\mathbf{y}_k = \mathbf{C} \mathbf{x}_k$进行跟踪并实现无稳态偏差控�
     \end{tabular}
 \end{table}
 
-\begin{figure}
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.5\linewidth]{fig/7.png}
-    \caption{线性与非线性 MPC 在不同预测时域下控制回路的计算时间（使用第 8 代 Intel i7 CPU）。参考信号如图~\ref{fig:5} 所示。}
+    \caption{不同预测时域下线性与非线性 MPC 的计算时间对比}
     \label{fig:7}
 \end{figure}
 % \todo{描述 MAV 在螺旋桨部分或完全失效（如六旋翼失效3个电机）的情况下，如何利用 MPC 的约束处理能力保持可控性 [cite: 326-338]。}
@@ -455,10 +468,10 @@ $\mathbf{y}_k = \mathbf{C} \mathbf{x}_k$进行跟踪并实现无稳态偏差控�
 
 % \todo{描述混合系统（Hybrid Systems）建模在物理交互（如接触墙面、开关门）中的应用。提及图 8 (Figure 8) 的交互动力学概念 [cite: 359-382]。}
 MPC 方法同样被应用于研究微型飞行器（MAVs）与环境进行物理交互的场景。文献~\cite{darivianakis2014hybrid} 针对四旋翼 MAV 提出了基于混合系统的建模方法，该 MAV 可在自由飞行中导航，或与环境接触以执行巡检任务。该工作首先利用闭环姿态动力学的系统辨识结果，对四旋翼在自由飞行中的位置动力学进行线性化建模；同时，将 MAV 与环境接触时的系统线性模型引入，通过考虑物理表面施加的力实现组合。混合系统方法的适用性在于碰撞动力学变化极快，因此可以将其作为非光滑效应处理，而无需使用刚性微分方程~\cite{jean1999non}。更广泛的示意如图~\ref{fig:8} 所示。
-\begin{figure}
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.5\linewidth]{fig/8.png}
-    \caption{微型飞行器的物理交互促成了混合系统框架。在自由飞行时，机械臂/末端执行器引起的扰动也需要考虑，而在物理交互过程中，环境施加的力必须被考虑。}
+    \caption{微型飞行器物理交互的混合系统框架示意图}
     \label{fig:8}
 \end{figure}
 
@@ -467,9 +480,10 @@ MPC 方法同样被应用于研究微型飞行器（MAVs）与环境进行物理
 
 % ===================== 第5章 结论 =====================
 \section{结论}
-\todo{【第五组成员】翻译 V. CONCLUSIONS。}
+%\todo{【第五组成员】翻译 V. CONCLUSIONS。}
+%\todo{总结全文：MPC在MAV领域的现状（线性/非线性、容错、RL结合）及未来展望 [cite: 395-398]。}
+本文对模型预测控制 (MPC) 在微型飞行器 (MAVs) 上的应用和设计考量进行了综述。该领域的文献包括针对机器人飞行动力学的线性和非线性控制器、物理交互和负载运输的方法、容错控制方案以及结合现代强化学习技术的方法。随着 MAV 在重要应用领域的整合变得越来越广泛，我们预计对新型 MPC 方法的研究——特别是考虑到机器人导航过程中的不确定性和风险——将变得更加重要，并且对于实现鲁棒的自主飞行可能是必不可少的。
 
-\todo{总结全文：MPC在MAV领域的现状（线性/非线性、容错、RL结合）及未来展望 [cite: 395-398]。}
 
 % --------- 附录部分 ---------
 \clearpage
@@ -481,11 +495,11 @@ MPC 方法同样被应用于研究微型飞行器（MAVs）与环境进行物理
 
 {\songti\zihao{-4}
     \begin{itemize}
-        \item \textbf{组员1}：负责摘要、引言及建模部分（第1-2章）。心得：通过这次大作业我学到了以下三点内容：第一，MPC 是连接“控制”与“规划”的最佳桥梁。 与传统 PID 不同，MPC 的核心优势在于它不仅能控制飞行，更能“预见”物理限制 。它通过在优化视界内显式处理输入约束（如电机极限）和状态约束（如禁飞区），在保证安全的前提下逼近飞行器的物理极限 。这使得它成为实现从简单悬停向复杂任务（如负载运输、物理交互）跨越的关键技术 。第二，建模的精髓在于“保真度”与“算力”的平衡。 建立通用的刚体动力学模型只是第一步 。如果追求高速敏捷飞行，必须引入“桨叶挥舞”和“诱导阻力”等空气动力学效应，否则模型误差会导致控制失效 。而在工程实现上，“级联控制架构”是标准答案：将高频姿态控制交给底层固件，MPC 作为外环只需调用简化的一阶姿态模型 。这种“内外环分离”极大降低了算力需求，是理论落地的关键。第三，鲁棒性与智能化是未来的必选项。 无论模型多精确，现实中总有误差。因此，引入扰动观测器来消除稳态误差是工程标配 。同时，深度强化学习 (Deep RL) 与 MPC 的结合正在改变游戏规则——用 RL 弥补模型缺陷，用 MPC 兜底安全约束，这种混合范式代表了下一代飞控的发展方向
-        \item \textbf{组员2}：负责线性MPC理论推导（第3.1节）。心得：掌握了利用泰勒展开进行模型线形化的方法...
-        \item \textbf{组员3}：负责非线性MPC及对比实验分析（第3.2-3.3节）。心得：...
-        \item \textbf{组员4}：负责容错控制与深度强化学习部分（第3.4-3.5节）。心得：...
-        \item \textbf{组员5}：负责特殊应用场景、开源资源及结论（第3.6-5章）。心得：...
+        \item \textbf{徐振榕}：负责摘要、引言及建模部分撰写（第1-2章）。心得：深刻理解了MPC作为连接控制与规划的桥梁作用，掌握了在建模保真度与计算算力之间寻求平衡的方法，并认识到鲁棒性与智能化（如结合深度强化学习）是未来飞控发展的关键方向。
+        \item \textbf{肖大亮}：负责线性MPC理论推导撰写（第3.1节）。心得：掌握了利用泰勒展开进行模型线性化的方法，理解了线性MPC在计算效率上的优势。
+        \item \textbf{杨宇航}：负责非线性MPC及对比实验分析撰写（第3.2-3.3节）。心得：深入学习了非线性MPC在处理大机动飞行时的优势，并通过对比实验验证了其性能。
+        \item \textbf{朱仕霖}：负责容错控制与深度强化学习部分撰写（第3.4-3.5节）。心得：了解了MPC在容错控制中的潜力，以及深度强化学习如何辅助MPC提升策略性能。
+        \item \textbf{于椋一}：负责特殊应用场景及结论撰写（第3.6-4章）。心得：调研了MPC在负载运输和物理交互等复杂场景下的应用，对MAV控制的前沿有了更全面的认识。
     \end{itemize}
 }
 
